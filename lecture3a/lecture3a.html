@@ -1,0 +1,217 @@
+<html>
+<script src="https://cdn.jsdelivr.net/npm/p5@0.10.2/lib/p5.min.js"></script>
+<script>
+//Hal Abelson explores Peter Henderson's Escher drawings using scheme in Lecture 3A of Structure and Interpretation of Computer Programs
+//https://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-001-structure-and-interpretation-of-computer-programs-spring-2005/video-lectures/3a-henderson-escher-example/
+
+//Below are my javascript versions of the functions Abelson defined in Scheme
+
+//I use line() from P5.js as a primitive
+
+//Basic elements
+//Rectangle defined by three:
+//  Origin (some vector)
+//  Horiz 
+//  Vert  
+
+//To be very Lispy, I define a data structure
+
+function makePair(first,second) {
+  return { first: first, second: second};
+}
+
+function car(pair) {
+  return pair.first;
+}
+
+function cdr(pair) {
+  return pair.second;
+}
+
+function makeVector(x,y) {
+  return makePair(x,y);
+}
+
+function xcoord(vector) {
+ // console.log("Trying to find car of: (" + car(vector)
+ //                   + ", " + cdr(vector) + ")")
+ //                    ;
+  return car(vector);
+}
+
+function ycoord(vector) {
+  return cdr(vector);
+}
+
+function vectorAdd(v1, v2) {
+  return makeVector(xcoord(v1) + xcoord(v2),
+                    ycoord(v1) + ycoord(v2));
+}
+
+
+//I am not happy about the name of this function
+function vectorMult(v1,v2) {
+  return makeVector(xcoord(v1) * xcoord(v2),                                               ycoord(v1) * ycoord(v2));
+}
+
+
+//This function suggests a partner function that goes 
+//the opposite way:
+//unitVector(coord, rect)
+//puts things in terms of a unit
+function unitVector(coord, rect) {
+  let xBase = (xcoord(origin(rect))) 
+                       - (xcoord(horiz(rect)));
+  let yBase = (ycoord(origin(rect))
+                       - (ycoord(vert(rect))));
+  let unitX = Math.abs(xcoord(coord) / xBase);
+  let unitY = Math.abs(ycoord(coord) / yBase);
+  return makeVector(unitX, unitY);
+}
+
+
+function scaleVector(scalar, vector) {
+  return vectorMult(makeVector(scalar,scalar),
+             vector);
+}
+
+//function scale(scalar1, scalar2) {
+//  return scalar1 * scalar2
+//}
+
+
+
+//function makeCoordsFunc(rect) {
+//  return (coord) => {
+//   return vectorAdd(origin,
+//                     vectorAdd(scaleXCoords(
+//                                 coord,
+//                                 horiz),
+                               
+//  }
+//}
+
+
+function makeRect(origin, horiz, vert) {
+  return {
+           origin: origin, 
+           horiz: horiz, 
+           vert: vert
+  }
+
+}
+
+
+  //In the video (43m) Abelson uses scale() rather than vectorMult
+  //This may be a better name than vectorMult
+  //going to change this now actually
+function coordMap(rect, coord) {
+        return vectorAdd(origin(rect),
+                         vectorAdd(vectorMult(coord,
+                                              horiz(rect)),
+                                   vectorMult(coord,
+                                                vert(rect))));
+}
+
+//this version uses scaleVector
+function coordMapV2(rect,coord) {
+    //I dislike this, because it should be the rect dimension
+    //that constrains the input coordinate
+    let scaledX = scaleVector(xcoord(coord), 
+                               horiz(rect));
+    let scaledY = scaleVector(ycoord(coord),
+                               vert(rect));
+    return vectorAdd(origin(rect),
+                     vectorAdd(scaledX,
+                               scaledY));
+}
+
+
+
+
+function origin(rect) { return rect.origin }
+function horiz(rect) { return rect.horiz }
+function vert(rect) { return rect.vert}
+
+function coords(rect) { return rect.coordsF; }
+
+
+
+function drawRect(myRect) {
+  rect(car(origin(myRect)),
+       cdr(origin(myRect)), 
+       car(horiz(myRect)),
+       cdr(vert(myRect)));
+}
+
+function drawLine(rect, segment) {
+  color("#000");
+  let p1 = (coordMapV2(rect, car(segment)));
+  let p2 = (coordMapV2(rect, cdr(segment)));
+  line( car(p1),cdr(p1),car(p2),cdr(p2));
+      
+} 
+
+function makePicture(seglist) {
+  return (rect) => {
+    seglist.forEach((s) => {
+      drawLine(rect, s);    
+    });
+
+  }
+}
+
+function makeSegment(x1,y1, x2, y2) {
+  return makePair(makeVector(x1,y1),
+           makeVector(x2,y2));
+}
+
+function beside(pF1, pF2, a) {
+  return (rect) => {
+    pF1 (makeRect(origin(rect),
+                  scaleVector(a, horiz(rect)),
+                  vert(rect)));
+    pF2 (makeRect(
+           vectorAdd( origin(rect), scaleVector(a, horiz(rect))),
+           scaleVector( 1 - a, horiz(rect)),
+           vert(rect)));
+          
+  }    
+}
+
+var shape1 = [
+       makeSegment(0, 0.3, 0.2, 0),
+       makeSegment(0, 0.6, 0.2, 1),
+       makeSegment(0.4,1,1,0.8),
+       makeSegment(1,0.6,0.4,0),
+       
+       makeSegment(0.2,0,0.5,0.5),
+       makeSegment(0.4,0,0.5,0.5),
+       makeSegment(0,0.3,0.6,0.6),
+       makeSegment(0,0.6,0.6,0.6),
+       makeSegment(0.2,1,0.5,0.8),
+       makeSegment(0.4,1,0.5,0.8),
+       makeSegment(0.7,0.5,1,0.6),
+       makeSegment(0.7,0.5,1,0.8)
+       ];
+
+var rect1;
+
+function setup(){
+  createCanvas(displayWidth, displayHeight);
+  console.log(this);
+  rect1 = makeRect(makeVector(200,200), makeVector(50,0), makeVector(0,100));
+  
+  beside(makePicture(shape1), makePicture(shape1),0.3)(rect1);
+  //makePicture(shape1)(rect1);
+}
+
+
+
+</script>
+
+
+
+
+</html>
+
